@@ -7,19 +7,30 @@ import requests
 
 def top_ten(subreddit):
     """
-        return top ten titles for a given subreddit
-        return None if invalid subreddit given
+    Prints the titles of the top ten hot posts for a given subreddit.
+    Prints None if the subreddit is invalid or has no posts.
     """
-    # get user agent
-    # https://stackoverflow.com/questions/10606133/ -->
-    # sending-user-agent-using-requests-library-in-python
-    headers = requests.utils.default_headers()
-    headers.update({'User-Agent': 'My User Agent 1.0'})
-
-    url = "https://www.reddit.com/r/{}/hot.json?limit=10".format(subreddit)
-    r = requests.get(url, headers=headers).json()
-    top_ten = r.get('data', {}).get('children', [])
-    if not top_ten:
+    if not subreddit or not isinstance(subreddit, str):
         print(None)
-    for t in top_ten:
-        print(t.get('data').get('title'))
+        return
+
+    headers = {'User-Agent': 'My User Agent 1.0'}
+    url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=10"
+
+    try:
+        response = requests.get(url, headers=headers, allow_redirects=False)
+
+        if response.status_code == 200:
+            data = response.json()
+            posts = data.get('data', {}).get('children', [])
+
+            if posts:
+                for post in posts:
+                    print(post.get('data', {}).get('title'))
+            else:
+                print(None)  # No posts found
+        else:
+            print(None)  # Invalid subreddit or other error
+    except Exception:
+        print(None)  # Catch unexpected errors
+
