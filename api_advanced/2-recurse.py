@@ -1,23 +1,44 @@
 #!/usr/bin/python3
-"""fetches the title of all hot posts for a given subreddit recursively"""
+"""Script that fetch all hot post for a given subreddit with recursive call."""
 
 import requests
 
+headers = {'User-Agent': 'MyAPI/0.0.1'}
 
-def recurse(subreddit, hot_list=[], after=""):
-    """Main function"""
-    URL = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
 
-    HEADERS = {"User-Agent": "PostmanRuntime/7.35.0"}
-    PARAMS = {"after": after, "limit": 100}
-    try:
-        RESPONSE = requests.get(URL, headers=HEADERS, params=PARAMS,
-                                allow_redirects=False)
-        after = RESPONSE.json().get("data").get("after")
-        HOT_POSTS = RESPONSE.json().get("data").get("children")
-        [hot_list.append(post.get('data').get('title')) for post in HOT_POSTS]
+def recurse(subreddit, after="", hot_list=[], page_counter=0):
+    """Return all hot posts in a subreddit."""
+
+    subreddit_url = "https://reddit.com/r/{}/hot.json".format(subreddit)
+
+    parameters = {'limit': 100, 'after': after}
+    response = requests.get(subreddit_url, headers=headers, params=parameters)
+
+    if response.status_code == 200:
+        json_data = response.json()
+        # get the 'after' value from the response to pass it on the request
+
+        # get title and append it to the hot_list
+        for child in json_data.get('data').get('children'):
+            title = child.get('data').get('title')
+            hot_list.append(title)
+
+        # variable after indicates if there is data on the next pagination
+        # on the reddit API after holds a unique name for that subreddit page.
+        # if it is None it indicates it is the last page.
+        after = json_data.get('data').get('after')
         if after is not None:
-            return recurse(subreddit, hot_list, after)
-        return hot_list
-    except Exception:
+
+            page_counter += 1
+            # print(len(hot_list))
+            return recurse(subreddit, after=after,
+                           hot_list=hot_list, page_counter=page_counter)
+        else:
+            return hot_list
+
+    else:
         return None
+
+
+if __name__ == '__main__':
+    print(recurse("zerowastecz"))
