@@ -1,53 +1,50 @@
 #!/usr/bin/python3
-""" 3-count.py """
-import json
+"""
+This script defines a function `count_words` that counts the occurrences
+of specific words in the titles of hot posts from a given subreddit.
+"""
+
 import requests
 
 
-def count_words(subreddit, word_list, after="", count=[]):
-    """ prints a sorted count of given keywords """
+def count_words(subreddit, word_list, after="", word_count={}):
+    """
+    Recursively counts the occurrences of each word in word_list in
+    the titles of hot posts from a given subreddit.
+    """
 
-    if after == "":
-        count = [0] * len(word_list)
+    headers = {"User-Agent": "Mozilla/5.0"}
+    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
+    params = {"after": after, "limit": 100}
+    response = requests.get(
+        url,
+        headers=headers,
+        params=params,
+        allow_redirects=False
+    )
 
-    url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
-    request = requests.get(url,
-                           params={'after': after},
-                           allow_redirects=False,
-                           headers={'User-Agent': 'Mozilla/5.0'})
+    if response.status_code != 200:
+        return
 
-    if request.status_code == 200:
-        data = request.json()
+    data = response.json()["data"]
+    children = data["children"]
+    after = data["after"]
 
-        for topic in (data['data']['children']):
-            for word in topic['data']['title'].split():
-                for i in range(len(word_list)):
-                    if word_list[i].lower() == word.lower():
-                        count[i] += 1
+    for child in children:
+        title = child["data"]["title"].lower()
+        for word in word_list:
+            word_lower = word.lower()
+            word_count[word_lower] = word_count.get(
+                word_lower, 0
+            ) + title.split().count(word_lower)
 
-        after = data['data']['after']
-        if after is None:
-            save = []
-            for i in range(len(word_list)):
-                for j in range(i + 1, len(word_list)):
-                    if word_list[i].lower() == word_list[j].lower():
-                        save.append(j)
-                        count[i] += count[j]
-
-            for i in range(len(word_list)):
-                for j in range(i, len(word_list)):
-                    if (count[j] > count[i] or
-                            (word_list[i] > word_list[j] and
-                             count[j] == count[i])):
-                        aux = count[i]
-                        count[i] = count[j]
-                        count[j] = aux
-                        aux = word_list[i]
-                        word_list[i] = word_list[j]
-                        word_list[j] = aux
-
-            for i in range(len(word_list)):
-                if (count[i] > 0) and i not in save:
-                    print("{}: {}".format(word_list[i].lower(), count[i]))
-        else:
-            count_words(subreddit, word_list, after, count)
+    if after:
+        count_words(subreddit, word_list, after, word_count)
+    else:
+        sorted_word_count = sorted(
+            word_count.items(),
+            key=lambda kv: (-kv[1], kv[0])
+         )
+        for word, count in sorted_word_count:
+            if count > 0:
+                print(f"{word}: {count}")
